@@ -2,9 +2,9 @@ name: Gamy AI checks
 
 on:
   push:
-    branches: ["main", "gamy-ai-v0.2"]
+    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "gamy-ai-v0.2"]
 
 permissions:
   contents: read
@@ -23,5 +23,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Run tests
+      - name: Run Python tests
         run: python -m pytest -q
+      - name: Check DropZone Lab JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path("simulator/dropzone_lab_android.html").read_text(encoding="utf-8")
+          start = html.find("<script>")
+          end = html.find("</script>", start + 8)
+          if start < 0 or end < 0:
+              raise SystemExit("Could not find the simulator's inline script")
+          Path("/tmp/dropzone-lab.js").write_text(html[start + 8:end], encoding="utf-8")
+          PY
+          node --check /tmp/dropzone-lab.js
