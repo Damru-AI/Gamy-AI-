@@ -10,7 +10,7 @@ The v0.6 evaluation report had 14 of 20 trials end after five steps. In the gree
 - Evaluation still reads Q-values without creating missing entries; it must not mutate the Q-table.
 
 ## Validation plan
-1. Open this candidate on mobile and run a fresh 2,000-episode training run (candidate uses the existing v0.7 Q-table storage key; clear only if you intend to start fresh).
+1. Open this candidate on mobile and run a fresh 2,000-episode training run (candidate has its own storage key, isolated from the v0.7 baseline).
 2. Run fixed-seed evaluation and export JSON.
 3. Repeat evaluation without training. Confirm the same seed suite produces the same report and that `qTableUnchanged` is true.
 4. Compare against the v0.7 baseline on identical seeds. Check survival, reward, outside-zone steps, safe-zone HP loss, and loot; do not judge by average reward alone.
