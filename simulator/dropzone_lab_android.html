@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.9</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v1.0</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -79,7 +79,7 @@
           <div id="trialReport" class="log" style="margin-top:10px;max-height:180px;overflow:auto">Run evaluation to create a reproducible report.</div>
         </div>
         <div class="section">
-          <div class="panelhead"><h3>SELF-IMPROVEMENT COACH</h3><span class="tiny">v0.9 · local tools</span></div>
+          <div class="panelhead"><h3>SELF-IMPROVEMENT COACH</h3><span class="tiny">v1.0 · squad awareness</span></div>
           <div class="tiny">Skills: report validation · metric interpretation · failure triage · experiment design · promotion gate</div>
           <div class="controls">
             <button id="coachBtn" class="primary wide">◎ Diagnose + create experiment plan</button>
@@ -103,7 +103,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
-const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v3_seeded_tie_break';
+const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v4_squad_awareness';
 const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
 let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,lastCoachPlan=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
 const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
@@ -115,9 +115,12 @@ function makeWorld(seed){
  rng=rand(seed);const obstacles=new Set(),loot=new Set();
  for(let i=0;i<68;i++){let x=2+Math.floor(rng()*(W-4)),y=2+Math.floor(rng()*(H-4));if((x<7&&y<7)||(x>W-8&&y>H-8))continue;obstacles.add(x+','+y);}
  for(let i=0;i<13;i++){let p;do{p=(2+Math.floor(rng()*(W-4)))+','+(2+Math.floor(rng()*(H-4)));}while(obstacles.has(p)||loot.has(p));loot.add(p);}
- const zone={x:16,y:10,r:10};return {obstacles,loot,zone,enemy:{x:25,y:15,hp:3,alive:true},tick:0,seed};
+ const zone={x:16,y:10,r:10};
+ const contacts=[];const used=new Set(obstacles);for(const p of loot)used.add(p);used.add('3,3');used.add('25,15');
+ for(let i=0;i<53;i++){let x=2,y=2,tries=0;do{x=2+Math.floor(rng()*(W-4));y=2+Math.floor(rng()*(H-4));tries++;}while((used.has(x+','+y)||Math.hypot(x-zone.x,y-zone.y)<2)&&tries<300);used.add(x+','+y);contacts.push({id:i+2,x,y,active:true});}
+ return {obstacles,loot,zone,enemy:{id:1,x:25,y:15,hp:3,alive:true},contacts,tick:0,seed};
 }
-function initEpisode(seed,evalMode=false){episode={world:makeWorld(seed),x:3,y:3,hp:5,ammo:2,alive:true,done:false,steps:0,reward:0,loot:0,evalMode,visited:new Set(),won:false,outsideZoneSteps:0,obstacleHits:0,damageEvents:0,zoneLossSteps:0};episode.visited.add('3,3');stepCount=0;episodeReward=0;episodeSteps=0;lastDecision='Agent spawned. Choose an action.';draw();}
+function initEpisode(seed,evalMode=false){episode={world:makeWorld(seed),x:3,y:3,hp:5,ammo:2,alive:true,done:false,steps:0,reward:0,loot:0,evalMode,visited:new Set(),won:false,outsideZoneSteps:0,obstacleHits:0,damageEvents:0,zoneLossSteps:0,squad:[{id:1,x:2,y:3},{id:2,x:3,y:4},{id:3,x:4,y:3}],recentDamage:false};episode.visited.add('3,3');stepCount=0;episodeReward=0;episodeSteps=0;lastDecision='Agent spawned. Choose an action.';draw();}
 function manhattan(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
 function stateOf(e){
  const w=e.world, enemy=w.enemy, dx=enemy.x-e.x,dy=enemy.y-e.y;
@@ -149,7 +152,7 @@ function applySurvivalGuardrail(e,proposed){
  const candidates=[];
  for(let i=0;i<4;i++){
    const a=ACTIONS[i],x=e.x+a.x,y=e.y+a.y;
-   if(cellBlocked(x,y,w)||(w.enemy.alive&&x===w.enemy.x&&y===w.enemy.y))continue;
+   if(cellBlocked(x,y,w)||(w.enemy.alive&&x===w.enemy.x&&y===w.enemy.y)||w.contacts.some(o=>o.active&&x===o.x&&y===o.y))continue;
    candidates.push({i,x,y,d:distance(x,y)});
  }
  if(here>r){
@@ -160,6 +163,8 @@ function applySurvivalGuardrail(e,proposed){
  }
  // Keep health at maximum when possible; 4/5 is 80%, above the requested 70% floor.
  if(e.hp<5)return 4;
+ // Damage response: once safe-zone priority is satisfied, recover instead of taking avoidable risks.
+ if(e.recentDamage&&here<=r)return 4;
  if(proposed!==4){
    const a=ACTIONS[proposed],nx=e.x+a.x,ny=e.y+a.y;
    if(distance(nx,ny)>r){
@@ -201,11 +206,15 @@ function step(actionIndex,learn=true){
    for(const [ox,oy] of candidates){const ex=w.enemy.x+ox,ey=w.enemy.y+oy;if(!cellBlocked(ex,ey,w)&&(ex!==e.x||ey!==e.y)){w.enemy.x=ex;w.enemy.y=ey;break;}}
  }
  const newDist=manhattan(e,w.enemy);
- if(w.enemy.alive&&newDist<=1&&e.ammo>0&&rng()<0.55){e.ammo--;w.enemy.hp--;reward+=0.65;lastDecision='Enemy engaged: +0.65 reward';if(w.enemy.hp<=0){w.enemy.alive=false;reward+=5;e.won=true;lastDecision='Opponent defeated: +5 reward';}}
- if(w.enemy.alive&&newDist<=1&&rng()<0.25){e.hp--;e.damageEvents++;reward-=0.8;lastDecision='Hit taken: health reduced';}
+ if(w.enemy.alive&&newDist<=1&&e.ammo>0&&rng()<0.55){e.ammo--;w.enemy.hp--;reward+=0.65;lastDecision='Enemy engaged: +0.65 reward';if(w.enemy.hp<=0){w.enemy.alive=false;reward+=1;lastDecision='Primary contact cleared; 53 other contacts remain';}}
+ const squadSupport=e.squad.some(m=>Math.abs(m.x-e.x)+Math.abs(m.y-e.y)<=2);
+ if(w.enemy.alive&&newDist<=1&&rng()<(squadSupport?0.12:0.25)){e.hp--;e.damageEvents++;e.recentDamage=true;reward-=0.8;lastDecision=squadSupport?'Damage detected; squad support active, recover health':'Damage detected: protect health and recover';}
+ if(e.hp>=5)e.recentDamage=false;
+ // Ambient contacts drift slowly; they create a crowded awareness benchmark but do not receive attack commands.
+ if(w.tick%5===0){for(const o of w.contacts){if(!o.active)continue;const dirs=[[0,-1],[1,0],[0,1],[-1,0],[0,0]],d=dirs[Math.floor(rng()*dirs.length)],nx=o.x+d[0],ny=o.y+d[1];if(!cellBlocked(nx,ny,w)&&!(nx===e.x&&ny===e.y)&&!(w.enemy.alive&&nx===w.enemy.x&&ny===w.enemy.y)&&!w.contacts.some(other=>other!==o&&other.active&&other.x===nx&&other.y===ny)){o.x=nx;o.y=ny;}}}
  if(e.hp<=0){e.alive=false;e.done=true;reward-=2;lastDecision='Episode ended: agent eliminated';}
- if(!w.enemy.alive&&e.alive){e.done=true;reward+=2;lastDecision='Victory condition achieved';}
- if(e.steps>=MAX_STEPS&&e.alive){e.done=true;reward+=1;lastDecision='Survived the episode';}
+ if(!w.enemy.alive&&e.alive){lastDecision='Primary contact cleared; continue squad survival objective';}
+ if(e.steps>=MAX_STEPS&&e.alive){e.done=true;e.won=true;reward+=1;lastDecision='Squad survival objective achieved';}
  const newS=stateOf(e);
  if(learn&&!e.evalMode){const qs=getQ(oldS),next=getQ(newS),old=qs[actionIndex],target=reward+(e.done?0:gamma*Math.max(...next));qs[actionIndex]=old+alpha*(target-old);}
  e.reward+=reward;e.world.tick=w.tick;episodeReward=e.reward;episodeSteps=e.steps;
@@ -257,9 +266,10 @@ function evaluate(){
  $('evalZoneLoss').textContent=(r.zoneLossSteps/tests).toFixed(1);
  $('evalDamage').textContent=(r.damageEvents/tests).toFixed(1);
  lastEvalReport={
-   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.9',
+   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'1.0',
    evaluatedAt:new Date().toISOString(),trainingEpisodes:episodes,epsilon,
    qStatesBefore,qStatesAfter,qTableUnchanged:qStatesBefore===qStatesAfter,
+   scenario:{opponentContacts:54,squadmates:3,mode:'awareness-and-survival; no automated target selection'},
    evaluation:{trialCount:tests,seedFormula:'7001 + trialIndexZeroBased * 101',
      wins:r.wins,winRatePercent:r.wins/tests*100,
      averageSurvivalSteps:r.survival/tests,averageReward:r.reward/tests,
@@ -332,11 +342,16 @@ function draw(){
  c.fillStyle='rgba(184,161,255,.035)';c.fill();
  for(const p of w.obstacles){const [x,y]=p.split(',').map(Number);c.fillStyle='#26394b';c.fillRect(x*cw+2,y*ch+2,cw-4,ch-4);c.fillStyle='#344a60';c.fillRect(x*cw+4,y*ch+3,cw-8,3);}
  for(const p of w.loot){const [x,y]=p.split(',').map(Number);c.fillStyle='#67e8f9';c.beginPath();c.arc((x+.5)*cw,(y+.5)*ch,Math.min(cw,ch)*.22,0,Math.PI*2);c.fill();}
- if(w.enemy.alive){c.fillStyle='#ff6d7a';c.beginPath();c.arc((w.enemy.x+.5)*cw,(w.enemy.y+.5)*ch,Math.min(cw,ch)*.33,0,Math.PI*2);c.fill();c.fillStyle='#ffd5d9';c.fillRect(w.enemy.x*cw+4,w.enemy.y*ch+3,Math.max(3,(cw-8)*w.enemy.hp/3),2);}
+ // 54 simulated opponent contacts: red markers are awareness signals, not auto-target commands.
+ for(const o of w.contacts){if(!o.active)continue;c.fillStyle='#ff6d7a';c.globalAlpha=.82;c.beginPath();c.arc((o.x+.5)*cw,(o.y+.5)*ch,Math.min(cw,ch)*.24,0,Math.PI*2);c.fill();c.globalAlpha=1;}
+ if(w.enemy.alive){c.fillStyle='#ff6d7a';c.beginPath();c.arc((w.enemy.x+.5)*cw,(w.enemy.y+.5)*ch,Math.min(cw,ch)*.36,0,Math.PI*2);c.fill();c.fillStyle='#ffd5d9';c.fillRect(w.enemy.x*cw+4,w.enemy.y*ch+3,Math.max(3,(cw-8)*w.enemy.hp/3),2);}
+ // Three squadmates (mint markers) follow nearby; their job here is team-survival support.
+ const squadOffsets=[[-1,0],[0,1],[1,0]];
+ episode.squad.forEach((mate,i)=>{const off=squadOffsets[i],mx=clamp(episode.x+off[0],1,W-2),my=clamp(episode.y+off[1],1,H-2);mate.x=mx;mate.y=my;if(!cellBlocked(mx,my,w)&&!(w.enemy.alive&&mx===w.enemy.x&&my===w.enemy.y)){c.fillStyle='#67e8c1';c.beginPath();c.arc((mx+.5)*cw,(my+.5)*ch,Math.min(cw,ch)*.27,0,Math.PI*2);c.fill();}});
  const e=episode;c.fillStyle='#b8f36b';c.beginPath();c.arc((e.x+.5)*cw,(e.y+.5)*ch,Math.min(cw,ch)*.36,0,Math.PI*2);c.fill();c.strokeStyle='#f1ffd7';c.lineWidth=1.5;c.stroke();
  c.fillStyle='#08101a';c.font='bold 9px system-ui';c.textAlign='center';c.fillText('AI',(e.x+.5)*cw,(e.y+.5)*ch+3);
  // status strip
- c.fillStyle='rgba(5,12,22,.86)';c.fillRect(6,6,145,43);c.fillStyle='#eaf2ff';c.textAlign='left';c.font='bold 10px system-ui';c.fillText('HP '+ '♥'.repeat(Math.max(0,e.hp))+'♡'.repeat(Math.max(0,5-e.hp)),13,21);c.fillStyle='#9aacc6';c.font='9px system-ui';c.fillText('AMMO '+e.ammo+'  ·  STEP '+e.steps+'/'+MAX_STEPS,13,37);
+ c.fillStyle='rgba(5,12,22,.86)';c.fillRect(6,6,145,43);c.fillStyle='#eaf2ff';c.textAlign='left';c.font='bold 10px system-ui';c.fillText('HP '+ '♥'.repeat(Math.max(0,e.hp))+'♡'.repeat(Math.max(0,5-e.hp)),13,21);c.fillStyle='#9aacc6';c.font='9px system-ui';c.fillText('AMMO '+e.ammo+' · TEAM 4 · CONTACTS '+(1+w.contacts.filter(o=>o.active).length),13,37);c.fillText('STEP '+e.steps+'/'+MAX_STEPS,13,47);
 }
 function drawLineChart(context,canvas,values,color,zeroLine=false){
  const width=canvas.width,height=canvas.height;context.clearRect(0,0,width,height);context.fillStyle='#091522';context.fillRect(0,0,width,height);
@@ -358,6 +373,8 @@ function updateUI(){
 let storageWorks=true;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
+window.addEventListener('error',event=>{try{log('Runtime error: '+(event.message||'unknown JavaScript error'));}catch(_){}});
+window.addEventListener('unhandledrejection',event=>{try{log('Async error: '+String(event.reason||'unknown rejection'));}catch(_){}});
 $('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);$('coachBtn').addEventListener('click',runCoach);$('coachExportBtn').addEventListener('click',exportCoachPlan);
 $('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const proposed=choose(stateOf(episode),false),a=applySurvivalGuardrail(episode,proposed);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
 $('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
