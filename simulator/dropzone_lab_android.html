@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.7</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.8</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -103,7 +103,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
-const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v2';
+const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v3_seeded_tie_break';
 const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
 let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,lastCoachPlan=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
 const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
@@ -135,7 +135,10 @@ function stateOf(e){
  ];
 }
 function getQ(s){const k=key(s);if(!q[k])q[k]=[0,0,0,0,0];return q[k];}
-function choose(s,explore=true){const vals=getQ(s);if(explore&&rng()<epsilon)return Math.floor(rng()*ACTIONS.length);let best=0;for(let i=1;i<vals.length;i++)if(vals[i]>vals[best])best=i;return best;}
+// Break equal-value ties with the episode's seeded RNG. This avoids a systematic
+// North-first bias when a state has unseen or equal Q-values, while staying reproducible.
+function greedyIndex(vals){const max=Math.max(...vals),ties=[];for(let i=0;i<vals.length;i++)if(Math.abs(vals[i]-max)<1e-12)ties.push(i);return ties[Math.floor(rng()*ties.length)];}
+function choose(s,explore=true){const vals=getQ(s);if(explore&&rng()<epsilon)return Math.floor(rng()*ACTIONS.length);return greedyIndex(vals);}
 function cellBlocked(x,y,w){return x<1||y<1||x>=W-1||y>=H-1||w.obstacles.has(x+','+y);}
 function step(actionIndex,learn=true){
  const e=episode;if(!e||e.done)return;
@@ -204,7 +207,7 @@ function evaluate(){
    initEpisode(seed,true);let guard=0;
    while(episode&&!episode.done&&guard<MAX_STEPS){
      const s=stateOf(episode),vals=q[key(s)]||[0,0,0,0,0];
-     let best=0;for(let j=1;j<vals.length;j++)if(vals[j]>vals[best])best=j;
+     const best=greedyIndex(vals);
      step(best,false);guard++;
    }
    const e=episode;
@@ -222,7 +225,7 @@ function evaluate(){
  $('evalZoneLoss').textContent=(r.zoneLossSteps/tests).toFixed(1);
  $('evalDamage').textContent=(r.damageEvents/tests).toFixed(1);
  lastEvalReport={
-   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.6',
+   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.8',
    evaluatedAt:new Date().toISOString(),trainingEpisodes:episodes,epsilon,
    qStatesBefore,qStatesAfter,qTableUnchanged:qStatesBefore===qStatesAfter,
    evaluation:{trialCount:tests,seedFormula:'7001 + trialIndexZeroBased * 101',
