@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.2</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.6</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -34,6 +34,7 @@
           <button id="pauseBtn" disabled>Ⅱ Pause</button>
           <button id="liveBtn">▶ Live episode</button>
           <button id="evalBtn">◎ Evaluate agent</button>
+          <button id="exportBtn" class="wide" disabled>↓ Download evaluation JSON</button>
           <button id="stepBtn">→ Single step</button>
           <button id="resetBtn">↺ Reset arena</button>
           <button class="wide" id="clearBtn">Clear saved learning data</button>
@@ -74,7 +75,8 @@
           <div class="progressline"><span>Loot collected / trial</span><strong id="evalLoot">—</strong></div>
           <div class="progressline"><span>Safe-zone HP loss / trial</span><strong id="evalZoneLoss">—</strong></div>
           <div class="progressline"><span>Opponent hits / trial</span><strong id="evalDamage">—</strong></div>
-          <div class="tiny">Evaluation uses fixed scenarios and does not update the Q-table.</div>
+          <div class="tiny">Fixed seed suite: 7001 + trial × 101. Evaluation must not create or update Q-table entries.</div>
+          <div id="trialReport" class="log" style="margin-top:10px;max-height:180px;overflow:auto">Run evaluation to create a reproducible report.</div>
         </div>
         <div class="section">
           <div class="panelhead"><h3>Research log</h3><span class="tiny">latest events</span></div>
@@ -93,7 +95,7 @@ const $ = id => document.getElementById(id);
 const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
 const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v2';
 const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
-let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
+let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
 const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
 let rng=Math.random;
 function log(s){const el=$('log'),d=document.createElement('div');d.textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})+'  '+s;el.prepend(d);while(el.children.length>24)el.lastChild.remove();}
@@ -179,21 +181,61 @@ function pause(){running=false;mode='idle';if(timer)clearTimeout(timer);timer=nu
 function startLive(){if(running)pause();mode='live';running=true;initEpisode(seedBase+episodes*17+Math.floor(Math.random()*999),false);$('phase').textContent='LIVE OBSERVATION';log('Live observation episode started.');updateUI();liveTick();}
 function liveTick(){if(!running||mode!=='live')return;const a=choose(stateOf(episode),false);lastDecision='Action: '+ACTIONS[a].n+' · state '+key(stateOf(episode));step(a,false);if(running&&mode==='live')timer=setTimeout(liveTick,210);}
 function evaluate(){
- if(running)pause();mode='eval';evalResult={wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0,zoneLossSteps:0};const priorE=epsilon;const savedEpisode=episode;const tests=20;
- // Evaluation is synchronous, deterministic and never updates Q-values.
+ if(running)pause();
+ mode='eval';
+ evalResult={wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0,zoneLossSteps:0};
+ trialResults=[];
+ const priorE=epsilon,savedEpisode=episode,tests=20,qStatesBefore=Object.keys(q).length;
+ // Fixed seeds and greedy actions make repeated evaluations comparable.
+ // Read Q-values without getQ(), because getQ() creates entries for unseen states.
  for(let i=0;i<tests;i++){
-   initEpisode(7001+i*101,true);let guard=0;
-   while(episode&&!episode.done&&guard<MAX_STEPS){const s=stateOf(episode),vals=getQ(s);let best=0;for(let j=1;j<vals.length;j++)if(vals[j]>vals[best])best=j;step(best,false);guard++;}
+   const seed=7001+i*101;
+   const before={...evalResult};
+   initEpisode(seed,true);let guard=0;
+   while(episode&&!episode.done&&guard<MAX_STEPS){
+     const s=stateOf(episode),vals=q[key(s)]||[0,0,0,0,0];
+     let best=0;for(let j=1;j<vals.length;j++)if(vals[j]>vals[best])best=j;
+     step(best,false);guard++;
+   }
+   const e=episode;
+   trialResults.push({
+     trial:i+1,seed,steps:e.steps,reward:Number(e.reward.toFixed(3)),won:!!e.won,
+     outsideZoneSteps:e.outsideZoneSteps,obstacleHits:e.obstacleHits,loot:e.loot,
+     safeZoneHpLoss:e.zoneLossSteps,opponentHits:e.damageEvents
+   });
  }
- evalHistory.push({ep:episodes,win:evalResult.wins/tests*100,survival:evalResult.survival/tests,reward:evalResult.reward/tests});if(evalHistory.length>20)evalHistory.shift();
- const r=evalResult;
+ const r=evalResult,qStatesAfter=Object.keys(q).length;
+ evalHistory.push({ep:episodes,win:r.wins/tests*100,survival:r.survival/tests,reward:r.reward/tests});if(evalHistory.length>20)evalHistory.shift();
  $('evalOutside').textContent=(r.outsideZoneSteps/tests).toFixed(1);
  $('evalObstacles').textContent=(r.obstacleHits/tests).toFixed(1);
  $('evalLoot').textContent=(r.loot/tests).toFixed(1);
  $('evalZoneLoss').textContent=(r.zoneLossSteps/tests).toFixed(1);
  $('evalDamage').textContent=(r.damageEvents/tests).toFixed(1);
- log('Evaluation complete: survival '+Math.round(r.survival/tests)+' steps avg; '+r.wins+'/'+tests+' wins.');
+ lastEvalReport={
+   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.6',
+   evaluatedAt:new Date().toISOString(),trainingEpisodes:episodes,epsilon,
+   qStatesBefore,qStatesAfter,qTableUnchanged:qStatesBefore===qStatesAfter,
+   evaluation:{trialCount:tests,seedFormula:'7001 + trialIndexZeroBased * 101',
+     wins:r.wins,winRatePercent:r.wins/tests*100,
+     averageSurvivalSteps:r.survival/tests,averageReward:r.reward/tests,
+     outsideZoneStepsPerTrial:r.outsideZoneSteps/tests,
+     obstacleHitsPerTrial:r.obstacleHits/tests,lootPerTrial:r.loot/tests,
+     safeZoneHpLossPerTrial:r.zoneLossSteps/tests,opponentHitsPerTrial:r.damageEvents/tests},
+   trials:trialResults
+ };
+ $('exportBtn').disabled=false;
+ const sample=trialResults.slice(0,5).map(t=>'#'+t.trial+' seed '+t.seed+': '+t.steps+' steps, reward '+t.reward+', zone loss '+t.safeZoneHpLoss).join('\n');
+ $('trialReport').textContent='Seed suite: 7001, 7102, 7203 … 8919\nQ-table unchanged: '+lastEvalReport.qTableUnchanged+' ('+qStatesBefore+' → '+qStatesAfter+')\nFirst 5 trials:\n'+sample+'\n\nDownload JSON for all 20 trials.';
+ log('Evaluation complete: '+Math.round(r.survival/tests)+' survival steps avg; '+r.wins+'/'+tests+' wins; Q-table '+(lastEvalReport.qTableUnchanged?'unchanged':'CHANGED')+'.');
  episode=savedEpisode;epsilon=priorE;mode='idle';running=false;draw();drawCharts();updateUI();$('phase').textContent='EVALUATION COMPLETE';
+}
+function exportEvaluation(){
+ if(!lastEvalReport){log('Run Evaluate agent before exporting a report.');return;}
+ const blob=new Blob([JSON.stringify(lastEvalReport,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='gamy-ai-evaluation-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ log('Evaluation JSON export requested.');
 }
 function draw(){
  const c=ctx,w=episode?.world;if(!w)return;const cw=arena.width/W,ch=arena.height/H;
@@ -231,7 +273,7 @@ function updateUI(){
 let storageWorks=true;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
-$('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);
+$('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);
 $('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const a=choose(stateOf(episode),false);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
 $('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
 $('clearBtn').addEventListener('click',()=>{if(running)pause();if(confirm('Delete all saved Q-learning data and episode history?')){q={};episodes=0;history=[];survivalHistory=[];evalHistory=[];epsilon=1;epRewards=[];epSurvivals=[];evalResult=null;try{localStorage.removeItem(SAVE_KEY);}catch(e){}initEpisode(seedBase,false);drawCharts();updateUI();log('Saved learning data cleared.');}});
