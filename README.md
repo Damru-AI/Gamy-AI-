@@ -66,3 +66,19 @@ The current DropZone Lab is a compact browser Q-learning prototype; it is not a 
 ## Development principle
 
 Train in the simulator, learn from properly labelled recordings, validate on held-out matches, and keep the best known checkpoint unless a new version improves measured metrics without regressions. Do not claim real-game performance until independently measured on a permitted test setup.
+
+
+## Self-improvement and tool use (v0.7)
+
+DropZone Lab now includes a local Research Coach. After running the fixed-seed evaluation, tap **Diagnose + create experiment plan** to validate metrics, triage the highest-priority weakness, and draft a reversible experiment. The plan can be downloaded as JSON.
+
+The Python research toolbox exposes allow-listed structured-data tools for report validation, diagnosis, experiment planning, and baseline/candidate comparison. It cannot execute arbitrary code, access a shell or network, or send game inputs.
+
+To diagnose an exported evaluation report on a Python environment:
+
+```bash
+python scripts/coach_report.py gamy-ai-evaluation.json --out gamy-improvement-plan.json
+python -m pytest -q
+```
+
+The coach uses transparent heuristics, not an external LLM. It proposes experiments but does not silently modify a policy or promote a candidate. Use the same validation seeds, a separate holdout seed suite, and rollback rules before accepting a change. See [docs/SELF_IMPROVEMENT_AND_TOOLS.md](docs/SELF_IMPROVEMENT_AND_TOOLS.md).
