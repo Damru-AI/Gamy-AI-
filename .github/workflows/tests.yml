@@ -2,7 +2,7 @@ name: Gamy AI checks
 
 on:
   push:
-    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment", "gamy-ai-v0.4-evaluation-diagnostics", "gamy-ai-v0.5-metric-fix", "gamy-ai-v0.6-reproducible-evaluation", "gamy-ai-v0.7-self-improving-agent", "gamy-ai-v0.8-seeded-tie-break"]
+    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment", "gamy-ai-v0.4-evaluation-diagnostics", "gamy-ai-v0.5-metric-fix", "gamy-ai-v0.6-reproducible-evaluation", "gamy-ai-v0.7-self-improving-agent", "gamy-ai-v0.8-seeded-tie-break", "gamy-ai-v0.9-survival-guardrails"]
   pull_request:
     branches: ["main", "gamy-ai-v0.2"]
 
