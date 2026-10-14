@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+frames/
+recordings/
+datasets/private/
+checkpoints/
+models/
+*.pt
+*.pth
+*.onnx
+.env
+.DS_Store

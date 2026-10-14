@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<title>DropZone Lab — Self-Learning AI</title>
+<style>
+:root{--bg:#080e19;--panel:#111b2b;--panel2:#172438;--line:#263750;--text:#eaf2ff;--muted:#9aacc6;--lime:#b8f36b;--cyan:#67e8f9;--orange:#ffb86b;--red:#ff6d7a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#14243a 0,#080e19 58%);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}button,select{font:inherit}button{border:1px solid var(--line);border-radius:10px;background:#1b2a40;color:var(--text);padding:10px 12px;font-weight:700;cursor:pointer}button:active{transform:scale(.98)}button.primary{background:var(--lime);border-color:var(--lime);color:#10190b}button:disabled{opacity:.45;cursor:not-allowed}.app{max-width:1100px;margin:auto;padding:16px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.brand{display:flex;align-items:center;gap:10px}.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--lime),var(--cyan));color:#07101a;display:grid;place-items:center;font-size:21px;font-weight:900}.eyebrow{font-size:10px;letter-spacing:2px;color:var(--lime);font-weight:800}.title{font-size:21px;font-weight:900;letter-spacing:-.5px}.sub{font-size:12px;color:var(--muted)}.pill{font-size:11px;border:1px solid #3b5a4c;color:var(--lime);padding:6px 9px;border-radius:999px;white-space:nowrap}.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.85fr);gap:14px}.panel{background:linear-gradient(160deg,rgba(20,32,50,.97),rgba(13,22,36,.97));border:1px solid var(--line);border-radius:16px;padding:14px;min-width:0;box-shadow:0 12px 30px #0002}.panelhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.panelhead h2{font-size:14px;margin:0}.tiny{font-size:11px;color:var(--muted)}canvas{display:block;width:100%;border-radius:10px;background:#091522;touch-action:manipulation}.gamewrap{position:relative}.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;color:var(--muted);font-size:11px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.controls button{min-height:42px}.controls .wide{grid-column:1/-1}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{background:#0b1422;border:1px solid #22334a;border-radius:12px;padding:10px}.stat .label{font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted)}.stat .value{font-size:22px;font-weight:900;margin-top:2px}.stat .hint{font-size:10px;color:var(--muted)}.section{margin-top:14px}.section h3{font-size:12px;margin:0 0 8px;color:#c8d7eb}.bar{height:7px;background:#25354a;border-radius:99px;overflow:hidden}.bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--lime));border-radius:99px;transition:width .2s}.range{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--muted);font-size:12px}.range input{width:100%;accent-color:var(--lime)}.mode{display:flex;gap:6px}.mode button{flex:1;padding:8px 5px;font-size:12px}.mode button.active{border-color:var(--lime);color:var(--lime);background:#1a2c2a}.chart{height:110px}.chart2{height:90px}.log{height:100px;overflow:auto;font-size:11px;color:#bfd0e5;background:#0a1320;border:1px solid #22334a;border-radius:10px;padding:8px}.log div{padding:2px 0;border-bottom:1px solid #ffffff0a}.footer{color:var(--muted);font-size:11px;text-align:center;margin:14px 0 4px}.note{padding:10px;border-radius:10px;background:#172337;color:#b9c8dc;font-size:11px;margin-top:12px}.note strong{color:var(--lime)}.progressline{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);margin:8px 0}.tag{color:var(--cyan);font-weight:800}.mobilehint{display:none}
+@media(max-width:760px){.app{padding:10px}.layout{grid-template-columns:1fr}.title{font-size:18px}.panel{padding:12px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.stat{padding:8px}.stat .value{font-size:17px}.stat .label{font-size:9px}.mobilehint{display:block}.top{align-items:flex-start}.pill{font-size:10px}.controls button{padding:9px 7px}.chart{height:100px}}
+@media(max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.title{font-size:16px}.logo{width:35px;height:35px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.1</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="pill">● OFFLINE-READY</div>
+  </header>
+  <div class="layout">
+    <main>
+      <section class="panel">
+        <div class="panelhead"><h2>01 / LIVE ARENA</h2><span id="phase" class="tiny">READY TO TRAIN</span></div>
+        <div class="gamewrap"><canvas id="arena" width="640" height="420" aria-label="2D battle royale simulator"></canvas></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#b8f36b"></i>AI agent</span>
+          <span><i class="dot" style="background:#ff6d7a"></i>Opponent</span>
+          <span><i class="dot" style="background:#67e8f9"></i>Loot</span>
+          <span><i class="dot" style="background:#b8a1ff"></i>Safe zone</span>
+        </div>
+        <div class="controls">
+          <button class="primary" id="trainBtn">▶ Train 1,000 episodes</button>
+          <button id="pauseBtn" disabled>Ⅱ Pause</button>
+          <button id="liveBtn">▶ Live episode</button>
+          <button id="evalBtn">◎ Evaluate agent</button>
+          <button id="stepBtn">→ Single step</button>
+          <button id="resetBtn">↺ Reset arena</button>
+          <button class="wide" id="clearBtn">Clear saved learning data</button>
+        </div>
+        <div class="range"><label for="speed">Training speed</label><input id="speed" type="range" min="1" max="5" value="4"><span id="speedVal">Fast</span></div>
+        <div class="range"><label for="target">Episode target</label><input id="target" type="range" min="100" max="5000" step="100" value="1000"><span id="targetVal">1,000</span></div>
+      </section>
+      <section class="panel section">
+        <div class="panelhead"><h2>02 / LEARNING CURVE</h2><span class="tiny">rolling avg reward</span></div>
+        <canvas id="rewardChart" class="chart" width="640" height="140"></canvas>
+        <div class="progressline"><span>Training progress</span><span id="progressText">0 / 1,000 episodes</span></div>
+        <div class="bar"><span id="progressBar"></span></div>
+      </section>
+    </main>
+    <aside>
+      <section class="panel">
+        <div class="panelhead"><h2>AGENT TELEMETRY</h2><span id="saveState" class="tiny">● Saved locally</span></div>
+        <div class="stats">
+          <div class="stat"><div class="label">Episodes</div><div class="value" id="episodes">0</div><div class="hint">completed</div></div>
+          <div class="stat"><div class="label">Avg reward</div><div class="value" id="avgReward">—</div><div class="hint">last 50</div></div>
+          <div class="stat"><div class="label">Survival</div><div class="value" id="survival">—</div><div class="hint">avg steps</div></div>
+          <div class="stat"><div class="label">Win rate</div><div class="value" id="winRate">—</div><div class="hint">evaluation</div></div>
+        </div>
+        <div class="section">
+          <div class="panelhead"><h3>Agent status</h3><span id="agentStatus" class="tag">EXPLORING</span></div>
+          <div class="tiny" id="decision">Waiting for first action…</div>
+          <div class="progressline"><span>Exploration (ε)</span><strong id="epsilon">1.00</strong></div>
+          <div class="bar"><span id="epsilonBar" style="width:100%"></span></div>
+          <div class="progressline"><span>Q-table states</span><strong id="states">0</strong></div>
+        </div>
+        <div class="section">
+          <div class="panelhead"><h3>Fixed-scenario evaluation</h3><span class="tiny">20 trials</span></div>
+          <canvas id="evalChart" class="chart2" width="640" height="110"></canvas>
+          <div class="progressline"><span>Survival rate</span><strong id="evalSurvival">Not tested</strong></div>
+          <div class="progressline"><span>Average test reward</span><strong id="evalReward">—</strong></div>
+          <div class="tiny">Evaluation uses fixed scenarios and does not update the Q-table.</div>
+        </div>
+        <div class="section">
+          <div class="panelhead"><h3>Research log</h3><span class="tiny">latest events</span></div>
+          <div id="log" class="log"><div>System initialized. Ready for training.</div></div>
+        </div>
+        <div class="note"><strong>Research note:</strong> this is a small custom 2D simulation, not Free Fire and not connected to its servers. Results measure this simulator only.</div>
+      </section>
+    </aside>
+  </div>
+  <div class="footer">DropZone Lab • Q-learning prototype • Learning data stays in this browser when local storage is available.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
+const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v1';
+const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
+let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
+const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
+let rng=Math.random;
+function log(s){const el=$('log'),d=document.createElement('div');d.textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})+'  '+s;el.prepend(d);while(el.children.length>24)el.lastChild.remove();}
+function key(s){return s.join(',');}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function makeWorld(seed){
+ rng=rand(seed);const obstacles=new Set(),loot=new Set();
+ for(let i=0;i<68;i++){let x=2+Math.floor(rng()*(W-4)),y=2+Math.floor(rng()*(H-4));if((x<7&&y<7)||(x>W-8&&y>H-8))continue;obstacles.add(x+','+y);}
+ for(let i=0;i<13;i++){let p;do{p=(2+Math.floor(rng()*(W-4)))+','+(2+Math.floor(rng()*(H-4)));}while(obstacles.has(p)||loot.has(p));loot.add(p);}
+ const zone={x:16,y:10,r:10};return {obstacles,loot,zone,enemy:{x:25,y:15,hp:3,alive:true},tick:0,seed};
+}
+function initEpisode(seed,evalMode=false){episode={world:makeWorld(seed),x:3,y:3,hp:5,ammo:2,alive:true,done:false,steps:0,reward:0,loot:0,evalMode,visited:new Set(),won:false};episode.visited.add('3,3');stepCount=0;episodeReward=0;episodeSteps=0;lastDecision='Agent spawned. Choose an action.';draw();}
+function manhattan(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
+function stateOf(e){
+ const w=e.world, enemy=w.enemy, dx=enemy.x-e.x,dy=enemy.y-e.y;
+ const dirx=dx===0?0:(dx>0?1:-1),diry=dy===0?0:(dy>0?1:-1);
+ const zoneDist=Math.round(Math.max(0,Math.hypot(e.x-w.zone.x,e.y-w.zone.y)-w.zone.r)/3);
+ const nearEnemy=Math.abs(dx)+Math.abs(dy)<=3?1:0;
+ const lootNearby=[...w.loot].some(p=>{const [x,y]=p.split(',').map(Number);return Math.abs(x-e.x)+Math.abs(y-e.y)<=2;})?1:0;
+ return [Math.min(2,Math.floor(e.hp/2)),Math.min(2,e.ammo),Math.sign(dirx),Math.sign(diry),nearEnemy,lootNearby,Math.min(3,zoneDist),e.x<5?0:e.x>W-6?2:1,e.y<5?0:e.y>H-5?2:1];
+}
+function getQ(s){const k=key(s);if(!q[k])q[k]=[0,0,0,0,0];return q[k];}
+function choose(s,explore=true){const vals=getQ(s);if(explore&&rng()<epsilon)return Math.floor(rng()*ACTIONS.length);let best=0;for(let i=1;i<vals.length;i++)if(vals[i]>vals[best])best=i;return best;}
+function cellBlocked(x,y,w){return x<1||y<1||x>=W-1||y>=H-1||w.obstacles.has(x+','+y);}
+function step(actionIndex,learn=true){
+ const e=episode;if(!e||e.done)return;
+ const w=e.world,a=ACTIONS[actionIndex],oldS=stateOf(e),oldDist=manhattan(e,w.enemy),oldZone=Math.hypot(e.x-w.zone.x,e.y-w.zone.y);
+ let reward=-0.04;w.tick++;e.steps++;
+ const nx=e.x+a.x,ny=e.y+a.y;
+ if(actionIndex!==4){
+   if(cellBlocked(nx,ny,w))reward-=0.65;
+   else if(nx===w.enemy.x&&ny===w.enemy.y&&w.enemy.alive){reward-=0.8;}
+   else {e.x=nx;e.y=ny;}
+ } else {if(e.hp<5){e.hp++;reward+=0.12;}else reward-=0.08;}
+ const p=e.x+','+e.y;
+ if(w.loot.has(p)){w.loot.delete(p);e.ammo=Math.min(3,e.ammo+1);e.hp=Math.min(5,e.hp+1);e.loot++;reward+=1.6;lastDecision='Loot collected: +1.6 reward';}
+ if(!e.visited.has(p)){e.visited.add(p);reward+=0.025;}
+ const dist=Math.hypot(e.x-w.zone.x,e.y-w.zone.y);
+ if(dist>w.zone.r){e.hp--;reward-=0.85;lastDecision='Outside safe zone: health penalty';}
+ else if(oldZone>w.zone.r&&dist<=w.zone.r){reward+=0.6;lastDecision='Entered safe zone';}
+ // Simple opponent moves toward the agent every few ticks.
+ if(w.enemy.alive&&w.tick%2===0){
+   const candidates=[[Math.sign(e.x-w.enemy.x),0],[0,Math.sign(e.y-w.enemy.y)],[0,0]];
+   for(const [ox,oy] of candidates){const ex=w.enemy.x+ox,ey=w.enemy.y+oy;if(!cellBlocked(ex,ey,w)&&(ex!==e.x||ey!==e.y)){w.enemy.x=ex;w.enemy.y=ey;break;}}
+ }
+ const newDist=manhattan(e,w.enemy);
+ if(w.enemy.alive&&newDist<=1&&e.ammo>0&&rng()<0.55){e.ammo--;w.enemy.hp--;reward+=0.65;lastDecision='Enemy engaged: +0.65 reward';if(w.enemy.hp<=0){w.enemy.alive=false;reward+=5;e.won=true;lastDecision='Opponent defeated: +5 reward';}}
+ if(w.enemy.alive&&newDist<=1&&rng()<0.25){e.hp--;reward-=0.8;lastDecision='Hit taken: health reduced';}
+ if(e.hp<=0){e.alive=false;e.done=true;reward-=2;lastDecision='Episode ended: agent eliminated';}
+ if(!w.enemy.alive&&e.alive){e.done=true;reward+=2;lastDecision='Victory condition achieved';}
+ if(e.steps>=MAX_STEPS&&e.alive){e.done=true;reward+=1;lastDecision='Survived the episode';}
+ const newS=stateOf(e);
+ if(learn&&!e.evalMode){const qs=getQ(oldS),next=getQ(newS),old=qs[actionIndex],target=reward+(e.done?0:gamma*Math.max(...next));qs[actionIndex]=old+alpha*(target-old);}
+ e.reward+=reward;e.world.tick=w.tick;episodeReward=e.reward;episodeSteps=e.steps;
+ if(e.done){finishEpisode();} else {draw();updateUI();}
+}
+function finishEpisode(){
+ const e=episode;if(!e)return;
+ if(!e.evalMode){episodes++;epRewards.push(e.reward);epSurvivals.push(e.steps);if(epRewards.length>50)epRewards.shift();if(epSurvivals.length>50)epSurvivals.shift();history.push({ep:episodes,reward:e.reward,avg:epRewards.reduce((a,b)=>a+b,0)/epRewards.length});survivalHistory.push({ep:episodes,steps:e.steps});if(history.length>250)history.shift();if(survivalHistory.length>250)survivalHistory.shift();epsilon=Math.max(0.06,epsilon*0.9975);if(e.won)episodeWins++;save();}
+ else {evalResult=evalResult||{wins:0,reward:0,survival:0,n:0};evalResult.n++;evalResult.reward+=e.reward;evalResult.survival+=e.steps;if(e.won)evalResult.wins++;}
+ updateUI();drawCharts();
+ if(running&&mode==='train'){
+   if(episodes>=trainTarget){running=false;mode='idle';clearTimeout(timer);timer=null;log('Training target reached: '+episodes+' episodes.');updateUI();return;}
+ }else if(running&&mode==='live'){running=false;mode='idle';updateUI();log('Live episode complete: reward '+e.reward.toFixed(1));}
+}
+function scheduleNext(){if(!running)return;const loops=[1,3,10,25,60][currentSpeed-1];for(let i=0;i<loops&&running;i++){if(!episode||episode.done)initEpisode(seedBase+episodes*17+stepCount,false);const a=choose(stateOf(episode),true);step(a,true);if(!running||mode!=='train')break;}if(running&&mode==='train')timer=setTimeout(scheduleNext,[300,140,65,22,5][currentSpeed-1]);}
+function startTraining(){if(running)return;trainTarget=Math.max(episodes,Number($('target').value));if(trainTarget<=episodes)trainTarget=episodes+100;mode='train';running=true;initEpisode(seedBase+episodes*17,false);$('phase').textContent='TRAINING';log('Training started. Target: '+trainTarget+' episodes.');updateUI();scheduleNext();}
+function pause(){running=false;mode='idle';if(timer)clearTimeout(timer);timer=null;$('phase').textContent='PAUSED';log('Training paused at episode '+episodes+'.');updateUI();}
+function startLive(){if(running)pause();mode='live';running=true;initEpisode(seedBase+episodes*17+Math.floor(Math.random()*999),false);$('phase').textContent='LIVE OBSERVATION';log('Live observation episode started.');updateUI();liveTick();}
+function liveTick(){if(!running||mode!=='live')return;const a=choose(stateOf(episode),false);lastDecision='Action: '+ACTIONS[a].n+' · state '+key(stateOf(episode));step(a,false);if(running&&mode==='live')timer=setTimeout(liveTick,210);}
+function evaluate(){
+ if(running)pause();mode='eval';evalResult={wins:0,reward:0,survival:0,n:0};const priorE=epsilon;const savedEpisode=episode;const tests=20;
+ // Evaluation is synchronous, deterministic and never updates Q-values.
+ for(let i=0;i<tests;i++){
+   initEpisode(7001+i*101,true);let guard=0;
+   while(episode&&!episode.done&&guard<MAX_STEPS){const s=stateOf(episode),vals=getQ(s);let best=0;for(let j=1;j<vals.length;j++)if(vals[j]>vals[best])best=j;step(best,false);guard++;}
+ }
+ evalHistory.push({ep:episodes,win:evalResult.wins/tests*100,survival:evalResult.survival/tests,reward:evalResult.reward/tests});if(evalHistory.length>20)evalHistory.shift();
+ const r=evalResult;log('Evaluation complete: survival '+Math.round(r.survival/tests)+' steps avg; '+r.wins+'/'+tests+' wins.');
+ episode=savedEpisode;epsilon=priorE;mode='idle';running=false;draw();drawCharts();updateUI();$('phase').textContent='EVALUATION COMPLETE';
+}
+function draw(){
+ const c=ctx,w=episode?.world;if(!w)return;const cw=arena.width/W,ch=arena.height/H;
+ c.clearRect(0,0,arena.width,arena.height);c.fillStyle='#0a1826';c.fillRect(0,0,arena.width,arena.height);
+ // terrain grid
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){c.strokeStyle='rgba(103,232,249,.055)';c.strokeRect(x*cw,y*ch,cw,ch);}
+ // safe zone
+ c.beginPath();c.arc((w.zone.x+.5)*cw,(w.zone.y+.5)*ch,w.zone.r*Math.min(cw,ch),0,Math.PI*2);c.strokeStyle='#b8a1ff';c.lineWidth=2;c.setLineDash([6,5]);c.stroke();c.setLineDash([]);
+ c.fillStyle='rgba(184,161,255,.035)';c.fill();
+ for(const p of w.obstacles){const [x,y]=p.split(',').map(Number);c.fillStyle='#26394b';c.fillRect(x*cw+2,y*ch+2,cw-4,ch-4);c.fillStyle='#344a60';c.fillRect(x*cw+4,y*ch+3,cw-8,3);}
+ for(const p of w.loot){const [x,y]=p.split(',').map(Number);c.fillStyle='#67e8f9';c.beginPath();c.arc((x+.5)*cw,(y+.5)*ch,Math.min(cw,ch)*.22,0,Math.PI*2);c.fill();}
+ if(w.enemy.alive){c.fillStyle='#ff6d7a';c.beginPath();c.arc((w.enemy.x+.5)*cw,(w.enemy.y+.5)*ch,Math.min(cw,ch)*.33,0,Math.PI*2);c.fill();c.fillStyle='#ffd5d9';c.fillRect(w.enemy.x*cw+4,w.enemy.y*ch+3,Math.max(3,(cw-8)*w.enemy.hp/3),2);}
+ const e=episode;c.fillStyle='#b8f36b';c.beginPath();c.arc((e.x+.5)*cw,(e.y+.5)*ch,Math.min(cw,ch)*.36,0,Math.PI*2);c.fill();c.strokeStyle='#f1ffd7';c.lineWidth=1.5;c.stroke();
+ c.fillStyle='#08101a';c.font='bold 9px system-ui';c.textAlign='center';c.fillText('AI',(e.x+.5)*cw,(e.y+.5)*ch+3);
+ // status strip
+ c.fillStyle='rgba(5,12,22,.86)';c.fillRect(6,6,145,43);c.fillStyle='#eaf2ff';c.textAlign='left';c.font='bold 10px system-ui';c.fillText('HP '+ '♥'.repeat(Math.max(0,e.hp))+'♡'.repeat(Math.max(0,5-e.hp)),13,21);c.fillStyle='#9aacc6';c.font='9px system-ui';c.fillText('AMMO '+e.ammo+'  ·  STEP '+e.steps+'/'+MAX_STEPS,13,37);
+}
+function drawLineChart(context,canvas,values,color,zeroLine=false){
+ const width=canvas.width,height=canvas.height;context.clearRect(0,0,width,height);context.fillStyle='#091522';context.fillRect(0,0,width,height);
+ context.strokeStyle='#24364b';context.lineWidth=1;for(let i=1;i<4;i++){context.beginPath();context.moveTo(0,height*i/4);context.lineTo(width,height*i/4);context.stroke();}
+ if(!values.length){context.fillStyle='#8195b1';context.font='12px system-ui';context.fillText('Train the agent to generate data',12,height/2);return;}
+ const nums=values.map(v=>typeof v==='number'?v:v.value);let min=Math.min(...nums),max=Math.max(...nums);if(min===max){min-=1;max+=1;}const pad=8;
+ context.strokeStyle=color;context.lineWidth=2;context.beginPath();nums.forEach((v,i)=>{const x=pad+(width-2*pad)*(i/Math.max(1,nums.length-1)),y=height-pad-(v-min)/(max-min)*(height-2*pad);if(i===0)context.moveTo(x,y);else context.lineTo(x,y);});context.stroke();
+ context.fillStyle='#a7bad2';context.font='10px system-ui';context.fillText('max '+max.toFixed(1),8,12);context.fillText('min '+min.toFixed(1),8,height-3);
+}
+function drawCharts(){drawLineChart(rc,$('rewardChart'),history.map(x=>x.avg),'#b8f36b');drawLineChart(ec,$('evalChart'),evalHistory.map(x=>x.win),'#67e8f9');}
+function updateUI(){
+ $('episodes').textContent=episodes.toLocaleString();$('avgReward').textContent=epRewards.length? (epRewards.reduce((a,b)=>a+b,0)/epRewards.length).toFixed(1):'—';$('survival').textContent=epSurvivals.length?Math.round(epSurvivals.reduce((a,b)=>a+b,0)/epSurvivals.length):'—';
+ $('winRate').textContent=evalHistory.length?Math.round(evalHistory[evalHistory.length-1].win)+'%':'—';$('epsilon').textContent=epsilon.toFixed(2);$('epsilonBar').style.width=(epsilon*100)+'%';$('states').textContent=Object.keys(q).length.toLocaleString();$('decision').textContent=lastDecision;
+ $('agentStatus').textContent=running?(mode==='train'?'LEARNING':mode==='live'?'OBSERVING':'TESTING'):(epsilon<.2?'POLICY REFINED':'READY');$('phase').textContent=running?(mode==='train'?'TRAINING':mode==='live'?'LIVE OBSERVATION':'EVALUATING'):'READY / '+mode.toUpperCase();
+ $('trainBtn').disabled=running;$('pauseBtn').disabled=!running;$('progressText').textContent=episodes.toLocaleString()+' / '+trainTarget.toLocaleString()+' episodes';$('progressBar').style.width=Math.min(100,episodes/Math.max(1,trainTarget)*100)+'%';
+ if(evalResult&&evalResult.n){$('evalSurvival').textContent=Math.round(evalResult.survival/evalResult.n)+' steps';$('evalReward').textContent=(evalResult.reward/evalResult.n).toFixed(2);}
+ $('saveState').textContent='● '+(storageWorks?'Saved locally':'Storage unavailable');
+}
+let storageWorks=true;
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
+function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
+$('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);
+$('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const a=choose(stateOf(episode),false);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
+$('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
+$('clearBtn').addEventListener('click',()=>{if(running)pause();if(confirm('Delete all saved Q-learning data and episode history?')){q={};episodes=0;history=[];survivalHistory=[];evalHistory=[];epsilon=1;epRewards=[];epSurvivals=[];evalResult=null;try{localStorage.removeItem(SAVE_KEY);}catch(e){}initEpisode(seedBase,false);drawCharts();updateUI();log('Saved learning data cleared.');}});
+$('speed').addEventListener('input',e=>{currentSpeed=Number(e.target.value);$('speedVal').textContent=['Slow','Steady','Quick','Fast','Turbo'][currentSpeed-1];});
+$('target').addEventListener('input',e=>{$('targetVal').textContent=Number(e.target.value).toLocaleString();trainTarget=Number(e.target.value);updateUI();});
+window.addEventListener('beforeunload',save);
+load();currentSpeed=Number($('speed').value);$('targetVal').textContent=Number($('target').value).toLocaleString();initEpisode(seedBase+episodes*17,false);drawCharts();updateUI();
+})();
+</script>
+</body>
+</html>
