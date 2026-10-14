@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.7</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.7</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div><div class="sub" style="color:var(--orange)">EXPERIMENT CANDIDATE · zone reward 0.45 · fresh training required</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -103,7 +103,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
-const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v2';
+const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v3_zone045';
 const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
 let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,lastCoachPlan=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
 const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
@@ -154,7 +154,7 @@ function step(actionIndex,learn=true){
  // Dense, non-combat reward shaping: make movement toward the safe zone learnable.
  if(oldZone>w.zone.r){
    const progress=clamp(oldZone-dist,-1,1);
-   reward+=progress*0.30;
+   reward+=progress*0.45;
    if(dist>w.zone.r){e.hp--;e.outsideZoneSteps++;e.zoneLossSteps++;reward-=0.55;lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: health penalty';}
    else {reward+=0.9;lastDecision='Entered safe zone';}
  } else {
