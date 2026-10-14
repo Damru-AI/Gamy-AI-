@@ -82,3 +82,8 @@ python -m pytest -q
 ```
 
 The coach uses transparent heuristics, not an external LLM. It proposes experiments but does not silently modify a policy or promote a candidate. Use the same validation seeds, a separate holdout seed suite, and rollback rules before accepting a change. See [docs/SELF_IMPROVEMENT_AND_TOOLS.md](docs/SELF_IMPROVEMENT_AND_TOOLS.md).
+
+
+## v1.1 Dynamic Zone & Vision Lab (draft)
+
+A separate experimental browser page is available at [simulator/gamy_ai_v1_1_vision_lab.html](simulator/gamy_ai_v1_1_vision_lab.html). It adds a six-phase shrinking safe zone, deterministic phase-based contact reduction, simulator-only movement and squad-support controls, local recorded-video playback, simple frame statistics, and JSON session export. See [docs/V1_1_DYNAMIC_ZONE_VISION.md](docs/V1_1_DYNAMIC_ZONE_VISION.md) for limitations and manual checks. The frame analyzer is not a trained vision model; no live-game controls are sent.

@@ -2,9 +2,9 @@ name: Gamy AI checks
 
 on:
   push:
-    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment", "gamy-ai-v0.4-evaluation-diagnostics", "gamy-ai-v0.5-metric-fix", "gamy-ai-v0.6-reproducible-evaluation", "gamy-ai-v0.7-self-improving-agent", "gamy-ai-v0.8-seeded-tie-break", "gamy-ai-v0.9-survival-guardrails", "gamy-ai-v1.0-squad-awareness"]
+    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment", "gamy-ai-v0.4-evaluation-diagnostics", "gamy-ai-v0.5-metric-fix", "gamy-ai-v0.6-reproducible-evaluation", "gamy-ai-v0.7-self-improving-agent", "gamy-ai-v0.8-seeded-tie-break", "gamy-ai-v0.9-survival-guardrails", "gamy-ai-v1.0-squad-awareness", "gamy-ai-v1.1-dynamic-zone-vision"]
   pull_request:
-    branches: ["main", "gamy-ai-v0.2"]
+    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v1.0-squad-awareness"]
 
 permissions:
   contents: read
@@ -29,11 +29,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          html = Path("simulator/dropzone_lab_android.html").read_text(encoding="utf-8")
-          start = html.find("<script>")
-          end = html.find("</script>", start + 8)
-          if start < 0 or end < 0:
-              raise SystemExit("Could not find the simulator's inline script")
-          Path("/tmp/dropzone-lab.js").write_text(html[start + 8:end], encoding="utf-8")
+          for filename, output in [("simulator/dropzone_lab_android.html", "/tmp/dropzone-lab.js"), ("simulator/gamy_ai_v1_1_vision_lab.html", "/tmp/gamy-v1-1.js")]:
+              html = Path(filename).read_text(encoding="utf-8")
+              start = html.find("<script>")
+              end = html.find("</script>", start + 8)
+              if start < 0 or end < 0:
+                  raise SystemExit(f"Could not find inline script in {filename}")
+              Path(output).write_text(html[start + 8:end], encoding="utf-8")
           PY
           node --check /tmp/dropzone-lab.js
+          node --check /tmp/gamy-v1-1.js
