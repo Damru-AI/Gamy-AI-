@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.6</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.7</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -79,6 +79,16 @@
           <div id="trialReport" class="log" style="margin-top:10px;max-height:180px;overflow:auto">Run evaluation to create a reproducible report.</div>
         </div>
         <div class="section">
+          <div class="panelhead"><h3>SELF-IMPROVEMENT COACH</h3><span class="tiny">v0.7 · local tools</span></div>
+          <div class="tiny">Skills: report validation · metric interpretation · failure triage · experiment design · promotion gate</div>
+          <div class="controls">
+            <button id="coachBtn" class="primary wide">◎ Diagnose + create experiment plan</button>
+            <button id="coachExportBtn" class="wide" disabled>↓ Download improvement plan JSON</button>
+          </div>
+          <div id="coachOutput" class="log" style="margin-top:10px;height:180px">Run an evaluation first. The coach will use its report to suggest one measurable, reversible experiment.</div>
+          <div class="tiny" style="margin-top:8px">Tools: validate report → summarize metrics → rank failure modes → propose experiment. No arbitrary code execution; candidate changes require your approval.</div>
+        </div>
+        <div class="section">
           <div class="panelhead"><h3>Research log</h3><span class="tiny">latest events</span></div>
           <div id="log" class="log"><div>System initialized. Ready for training.</div></div>
         </div>
@@ -95,7 +105,7 @@ const $ = id => document.getElementById(id);
 const arena=$('arena'), ctx=arena.getContext('2d'), rc=$('rewardChart').getContext('2d'), ec=$('evalChart').getContext('2d');
 const W=32,H=21, CELL=20, MAX_STEPS=150, SAVE_KEY='dropzone_lab_qlearning_v2';
 const ACTIONS=[{n:'North',x:0,y:-1},{n:'East',x:1,y:0},{n:'South',x:0,y:1},{n:'West',x:-1,y:0},{n:'Stay / recover',x:0,y:0}];
-let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
+let q={},episodes=0,history=[],survivalHistory=[],evalHistory=[],evalResult=null,lastEvalReport=null,lastCoachPlan=null,trialResults=[],epsilon=1,alpha=.16,gamma=.92,running=false,mode='idle',timer=null,episode=null,stepCount=0,trainTarget=1000,seedBase=811,episodeWins=0,lastDecision='Waiting for first action…',episodeReward=0,episodeSteps=0,epRewards=[],epSurvivals=[],currentSpeed=4;
 const rand=(seed)=>{let t=seed>>>0;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^(x>>>15),x|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};};
 let rng=Math.random;
 function log(s){const el=$('log'),d=document.createElement('div');d.textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})+'  '+s;el.prepend(d);while(el.children.length>24)el.lastChild.remove();}
@@ -237,6 +247,46 @@ function exportEvaluation(){
  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  log('Evaluation JSON export requested.');
 }
+function runCoach(){
+ if(!lastEvalReport){$('coachOutput').textContent='No evaluation report found. Run Evaluate agent first.';return;}
+ const r=lastEvalReport,m=r.evaluation,problems=[];
+ if(r.schemaVersion!==1)problems.push('Unsupported report schema.');
+ if(!m||!Number.isFinite(m.averageSurvivalSteps)||!Number.isFinite(m.averageReward)||!Number.isFinite(m.outsideZoneStepsPerTrial)||!Number.isFinite(m.safeZoneHpLossPerTrial)||!Number.isFinite(m.winRatePercent))problems.push('Required metrics are missing or invalid.');
+ if(r.qTableUnchanged!==true)problems.push('Q-table immutability was not confirmed.');
+ if(problems.length){lastCoachPlan=null;$('coachExportBtn').disabled=true;$('coachOutput').textContent='VALIDATION BLOCKED\n'+problems.join('\n');return;}
+ const issues=[];
+ if(m.outsideZoneStepsPerTrial>0||m.safeZoneHpLossPerTrial>0)issues.push({priority:'P0',name:'safe_zone_navigation',evidence:'Outside-zone steps/trial='+m.outsideZoneStepsPerTrial.toFixed(2)+'; safe-zone HP loss/trial='+m.safeZoneHpLossPerTrial.toFixed(2)+'.'});
+ if(m.averageSurvivalSteps<30)issues.push({priority:'P0',name:'short_survival',evidence:'Average survival='+m.averageSurvivalSteps.toFixed(2)+' steps.'});
+ if(Number.isFinite(m.lootPerTrial)&&m.lootPerTrial<.5)issues.push({priority:'P1',name:'low_loot_collection',evidence:'Loot collected/trial='+m.lootPerTrial.toFixed(2)+'.'});
+ if(m.winRatePercent===0)issues.push({priority:'P2',name:'no_wins_yet',evidence:'No wins in the fixed-seed suite; prioritize survival metrics first.'});
+ const top=issues[0]||{priority:'P2',name:'holdout_generalization',evidence:'No critical heuristic threshold triggered.'};
+ const plan={
+  schemaVersion:1,project:'Gamy AI / DropZone Lab',coachVersion:'0.7',
+  createdAt:new Date().toISOString(),trainingEpisodes:r.trainingEpisodes,
+  reportIntegrity:{qTableUnchanged:r.qTableUnchanged,qStatesBefore:r.qStatesBefore,qStatesAfter:r.qStatesAfter},
+  skillsUsed:['report_validation','metric_interpretation','failure_triage','experiment_design','promotion_gate'],
+  toolCalls:['validate_report','summarize_metrics','rank_failure_modes','make_experiment_plan'],
+  diagnosis:{status:'diagnosed',topIssue:top.name,priority:top.priority,evidence:top.evidence,allIssues:issues},
+  experiment:{title:top.name==='safe_zone_navigation'?'Zone-navigation reward ablation':top.name==='short_survival'?'Terminal-condition and survival audit':top.name==='low_loot_collection'?'Loot-state observability experiment':'Holdout generalization check',
+   hypothesis:top.name==='safe_zone_navigation'?'A clearer zone-distance signal will reduce outside-zone steps without sacrificing survival.':'A targeted, one-variable experiment will identify whether the measured weakness can be improved without regressions.',
+   proposedChange:top.name==='safe_zone_navigation'?'In a separate candidate copy, change only the zone-progress reward coefficient; keep seeds, starting conditions, and all other parameters fixed.':'Inspect per-seed outcomes and change only one documented factor in a separate candidate copy.',
+   acceptanceCriteria:['Use identical fixed validation seeds for baseline and candidate.','Reduce outside-zone steps and safe-zone HP loss by at least 20%.','Average survival must not decrease by more than 5%.','Q-table must remain unchanged during evaluation.','Confirm results on a separate holdout seed suite.'],
+   rollbackRule:'Keep the previous checkpoint if any acceptance criterion fails; never overwrite the best checkpoint during experimentation.',
+   humanApprovalRequired:true},
+  limitation:'Heuristic diagnosis only; it is not proof of root cause and does not modify the learned policy.'
+ };
+ lastCoachPlan=plan;$('coachExportBtn').disabled=false;
+ $('coachOutput').textContent='DIAGNOSIS: '+top.name+' ('+top.priority+')\n'+top.evidence+'\n\nTOOLS USED: validate report → summarize metrics → rank failure modes → create experiment plan\n\nHYPOTHESIS: '+plan.experiment.hypothesis+'\n\nPROPOSED EXPERIMENT: '+plan.experiment.proposedChange+'\n\nACCEPTANCE: reduce zone-loss metrics, preserve survival/reward, and verify on holdout seeds.\n\nROLLBACK: '+plan.experiment.rollbackRule+'\n\nHuman approval required. The coach proposes changes; it does not silently change the policy.';
+ log('Research coach generated plan: '+top.name+'. No policy changes applied.');
+}
+function exportCoachPlan(){
+ if(!lastCoachPlan){log('Run the self-improvement coach before exporting a plan.');return;}
+ const blob=new Blob([JSON.stringify(lastCoachPlan,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='gamy-ai-improvement-plan-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ log('Improvement plan JSON export requested.');
+}
 function draw(){
  const c=ctx,w=episode?.world;if(!w)return;const cw=arena.width/W,ch=arena.height/H;
  c.clearRect(0,0,arena.width,arena.height);c.fillStyle='#0a1826';c.fillRect(0,0,arena.width,arena.height);
@@ -273,7 +323,7 @@ function updateUI(){
 let storageWorks=true;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
-$('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);
+$('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);$('coachBtn').addEventListener('click',runCoach);$('coachExportBtn').addEventListener('click',exportCoachPlan);
 $('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const a=choose(stateOf(episode),false);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
 $('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
 $('clearBtn').addEventListener('click',()=>{if(running)pause();if(confirm('Delete all saved Q-learning data and episode history?')){q={};episodes=0;history=[];survivalHistory=[];evalHistory=[];epsilon=1;epRewards=[];epSurvivals=[];evalResult=null;try{localStorage.removeItem(SAVE_KEY);}catch(e){}initEpisode(seedBase,false);drawCharts();updateUI();log('Saved learning data cleared.');}});
