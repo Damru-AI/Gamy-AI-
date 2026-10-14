@@ -87,3 +87,10 @@ The coach uses transparent heuristics, not an external LLM. It proposes experime
 ## v1.1 Dynamic Zone & Vision Lab (draft)
 
 A separate experimental browser page is available at [simulator/gamy_ai_v1_1_vision_lab.html](simulator/gamy_ai_v1_1_vision_lab.html). It adds a six-phase shrinking safe zone, deterministic phase-based contact reduction, simulator-only movement and squad-support controls, local recorded-video playback, simple frame statistics, and JSON session export. See [docs/V1_1_DYNAMIC_ZONE_VISION.md](docs/V1_1_DYNAMIC_ZONE_VISION.md) for limitations and manual checks. The frame analyzer is not a trained vision model; no live-game controls are sent.
+
+
+## v1.2 Autonomous Research Core (experimental)
+
+The root-level [gamy_agent_core.py](gamy_agent_core.py) adds a PyTorch DQN policy, bounded replay memory, JSONL persistence, target-network updates, and checkpoint save/load for a controlled research simulator. See [GAMY_AI_V1_2_ARCHITECTURE.md](GAMY_AI_V1_2_ARCHITECTURE.md) for the design and Hugging Face artifact workflow.
+
+Install the optional learning dependency with `pip install torch`. The policy is untrained until you run it against a simulator loop and evaluate it. This module has no screen capture, mobile accessibility, keyboard/mouse injection, or external-game control adapter. Its action set is limited to navigation, waiting, regrouping, and recovery in a controlled simulator.
