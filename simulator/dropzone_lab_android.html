@@ -347,7 +347,7 @@ function draw(){
  if(w.enemy.alive){c.fillStyle='#ff6d7a';c.beginPath();c.arc((w.enemy.x+.5)*cw,(w.enemy.y+.5)*ch,Math.min(cw,ch)*.36,0,Math.PI*2);c.fill();c.fillStyle='#ffd5d9';c.fillRect(w.enemy.x*cw+4,w.enemy.y*ch+3,Math.max(3,(cw-8)*w.enemy.hp/3),2);}
  // Three squadmates (mint markers) follow nearby; their job here is team-survival support.
  const squadOffsets=[[-1,0],[0,1],[1,0]];
- e.squad.forEach((mate,i)=>{const off=squadOffsets[i],mx=clamp(e.x+off[0],1,W-2),my=clamp(e.y+off[1],1,H-2);mate.x=mx;mate.y=my;if(!cellBlocked(mx,my,w)&&!(w.enemy.alive&&mx===w.enemy.x&&my===w.enemy.y)){c.fillStyle='#67e8c1';c.beginPath();c.arc((mx+.5)*cw,(my+.5)*ch,Math.min(cw,ch)*.27,0,Math.PI*2);c.fill();}});
+ episode.squad.forEach((mate,i)=>{const off=squadOffsets[i],mx=clamp(episode.x+off[0],1,W-2),my=clamp(episode.y+off[1],1,H-2);mate.x=mx;mate.y=my;if(!cellBlocked(mx,my,w)&&!(w.enemy.alive&&mx===w.enemy.x&&my===w.enemy.y)){c.fillStyle='#67e8c1';c.beginPath();c.arc((mx+.5)*cw,(my+.5)*ch,Math.min(cw,ch)*.27,0,Math.PI*2);c.fill();}});
  const e=episode;c.fillStyle='#b8f36b';c.beginPath();c.arc((e.x+.5)*cw,(e.y+.5)*ch,Math.min(cw,ch)*.36,0,Math.PI*2);c.fill();c.strokeStyle='#f1ffd7';c.lineWidth=1.5;c.stroke();
  c.fillStyle='#08101a';c.font='bold 9px system-ui';c.textAlign='center';c.fillText('AI',(e.x+.5)*cw,(e.y+.5)*ch+3);
  // status strip
@@ -373,6 +373,8 @@ function updateUI(){
 let storageWorks=true;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
+window.addEventListener('error',event=>{try{log('Runtime error: '+(event.message||'unknown JavaScript error'));}catch(_){}});
+window.addEventListener('unhandledrejection',event=>{try{log('Async error: '+String(event.reason||'unknown rejection'));}catch(_){}});
 $('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);$('coachBtn').addEventListener('click',runCoach);$('coachExportBtn').addEventListener('click',exportCoachPlan);
 $('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const proposed=choose(stateOf(episode),false),a=applySurvivalGuardrail(episode,proposed);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
 $('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
