@@ -206,14 +206,15 @@ function step(actionIndex,learn=true){
    for(const [ox,oy] of candidates){const ex=w.enemy.x+ox,ey=w.enemy.y+oy;if(!cellBlocked(ex,ey,w)&&(ex!==e.x||ey!==e.y)){w.enemy.x=ex;w.enemy.y=ey;break;}}
  }
  const newDist=manhattan(e,w.enemy);
- if(w.enemy.alive&&newDist<=1&&e.ammo>0&&rng()<0.55){e.ammo--;w.enemy.hp--;reward+=0.65;lastDecision='Enemy engaged: +0.65 reward';if(w.enemy.hp<=0){w.enemy.alive=false;reward+=5;e.won=true;lastDecision='Opponent defeated: +5 reward';}}
- if(w.enemy.alive&&newDist<=1&&rng()<0.25){e.hp--;e.damageEvents++;e.recentDamage=true;reward-=0.8;lastDecision='Damage detected: protect health and recover';}
+ if(w.enemy.alive&&newDist<=1&&e.ammo>0&&rng()<0.55){e.ammo--;w.enemy.hp--;reward+=0.65;lastDecision='Enemy engaged: +0.65 reward';if(w.enemy.hp<=0){w.enemy.alive=false;reward+=1;lastDecision='Primary contact cleared; 53 other contacts remain';}}
+ const squadSupport=e.squad.some(m=>Math.abs(m.x-e.x)+Math.abs(m.y-e.y)<=2);
+ if(w.enemy.alive&&newDist<=1&&rng()<(squadSupport?0.12:0.25)){e.hp--;e.damageEvents++;e.recentDamage=true;reward-=0.8;lastDecision=squadSupport?'Damage detected; squad support active, recover health':'Damage detected: protect health and recover';}
  if(e.hp>=5)e.recentDamage=false;
  // Ambient contacts drift slowly; they create a crowded awareness benchmark but do not receive attack commands.
  if(w.tick%5===0){for(const o of w.contacts){if(!o.active)continue;const dirs=[[0,-1],[1,0],[0,1],[-1,0],[0,0]],d=dirs[Math.floor(rng()*dirs.length)],nx=o.x+d[0],ny=o.y+d[1];if(!cellBlocked(nx,ny,w)&&!(nx===e.x&&ny===e.y)&&!(w.enemy.alive&&nx===w.enemy.x&&ny===w.enemy.y)&&!w.contacts.some(other=>other!==o&&other.active&&other.x===nx&&other.y===ny)){o.x=nx;o.y=ny;}}}
  if(e.hp<=0){e.alive=false;e.done=true;reward-=2;lastDecision='Episode ended: agent eliminated';}
- if(!w.enemy.alive&&e.alive){e.done=true;reward+=2;lastDecision='Victory condition achieved';}
- if(e.steps>=MAX_STEPS&&e.alive){e.done=true;reward+=1;lastDecision='Survived the episode';}
+ if(!w.enemy.alive&&e.alive){lastDecision='Primary contact cleared; continue squad survival objective';}
+ if(e.steps>=MAX_STEPS&&e.alive){e.done=true;e.won=true;reward+=1;lastDecision='Squad survival objective achieved';}
  const newS=stateOf(e);
  if(learn&&!e.evalMode){const qs=getQ(oldS),next=getQ(newS),old=qs[actionIndex],target=reward+(e.done?0:gamma*Math.max(...next));qs[actionIndex]=old+alpha*(target-old);}
  e.reward+=reward;e.world.tick=w.tick;episodeReward=e.reward;episodeSteps=e.steps;
