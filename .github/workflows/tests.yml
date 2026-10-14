@@ -2,7 +2,7 @@ name: Gamy AI checks
 
 on:
   push:
-    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment"]
+    branches: ["main", "gamy-ai-v0.2", "gamy-ai-v0.3-survival-experiment", "gamy-ai-v0.4-evaluation-diagnostics"]
   pull_request:
     branches: ["main", "gamy-ai-v0.2"]
 
