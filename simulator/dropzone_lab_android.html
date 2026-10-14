@@ -15,7 +15,7 @@
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.8</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
+    <div class="brand"><div class="logo">DZ</div><div><div class="eyebrow">RESEARCH SIMULATOR / v0.9</div><div class="title">DropZone Lab</div><div class="sub">Self-learning battle-royale AI</div></div></div>
     <div class="pill">● OFFLINE-READY</div>
   </header>
   <div class="layout">
@@ -73,13 +73,13 @@
           <div class="progressline"><span>Outside-zone steps / trial</span><strong id="evalOutside">—</strong></div>
           <div class="progressline"><span>Obstacle hits / trial</span><strong id="evalObstacles">—</strong></div>
           <div class="progressline"><span>Loot collected / trial</span><strong id="evalLoot">—</strong></div>
-          <div class="progressline"><span>Safe-zone HP loss / trial</span><strong id="evalZoneLoss">—</strong></div>
+          <div class="progressline"><span>Zone damage ticks / trial</span><strong id="evalZoneLoss">—</strong></div>
           <div class="progressline"><span>Opponent hits / trial</span><strong id="evalDamage">—</strong></div>
           <div class="tiny">Fixed seed suite: 7001 + trial × 101. Evaluation must not create or update Q-table entries.</div>
           <div id="trialReport" class="log" style="margin-top:10px;max-height:180px;overflow:auto">Run evaluation to create a reproducible report.</div>
         </div>
         <div class="section">
-          <div class="panelhead"><h3>SELF-IMPROVEMENT COACH</h3><span class="tiny">v0.7 · local tools</span></div>
+          <div class="panelhead"><h3>SELF-IMPROVEMENT COACH</h3><span class="tiny">v0.9 · local tools</span></div>
           <div class="tiny">Skills: report validation · metric interpretation · failure triage · experiment design · promotion gate</div>
           <div class="controls">
             <button id="coachBtn" class="primary wide">◎ Diagnose + create experiment plan</button>
@@ -140,6 +140,38 @@ function getQ(s){const k=key(s);if(!q[k])q[k]=[0,0,0,0,0];return q[k];}
 function greedyIndex(vals){const max=Math.max(...vals),ties=[];for(let i=0;i<vals.length;i++)if(Math.abs(vals[i]-max)<1e-12)ties.push(i);return ties[Math.floor(rng()*ties.length)];}
 function choose(s,explore=true){const vals=getQ(s);if(explore&&rng()<epsilon)return Math.floor(rng()*ACTIONS.length);return greedyIndex(vals);}
 function cellBlocked(x,y,w){return x<1||y<1||x>=W-1||y>=H-1||w.obstacles.has(x+','+y);}
+// Safety shield for this toy simulator: enter/remain in the safe zone first,
+// then recover health inside it. This is a transparent guardrail, not a learned skill.
+function applySurvivalGuardrail(e,proposed){
+ const w=e.world,z=w.zone,r=z.r;
+ const distance=(x,y)=>Math.hypot(x-z.x,y-z.y);
+ const here=distance(e.x,e.y);
+ const candidates=[];
+ for(let i=0;i<4;i++){
+   const a=ACTIONS[i],x=e.x+a.x,y=e.y+a.y;
+   if(cellBlocked(x,y,w)||(w.enemy.alive&&x===w.enemy.x&&y===w.enemy.y))continue;
+   candidates.push({i,x,y,d:distance(x,y)});
+ }
+ if(here>r){
+   if(!candidates.length)return 4;
+   const best=Math.min(...candidates.map(c=>c.d));
+   const improving=candidates.filter(c=>Math.abs(c.d-best)<1e-9);
+   return improving[Math.floor(rng()*improving.length)].i;
+ }
+ // Keep health at maximum when possible; 4/5 is 80%, above the requested 70% floor.
+ if(e.hp<5)return 4;
+ if(proposed!==4){
+   const a=ACTIONS[proposed],nx=e.x+a.x,ny=e.y+a.y;
+   if(distance(nx,ny)>r){
+     const safe=candidates.filter(c=>c.d<=r);
+     if(!safe.length)return 4;
+     const best=Math.min(...safe.map(c=>c.d));
+     const preferred=safe.filter(c=>Math.abs(c.d-best)<1e-9);
+     return preferred[Math.floor(rng()*preferred.length)].i;
+   }
+ }
+ return proposed;
+}
 function step(actionIndex,learn=true){
  const e=episode;if(!e||e.done)return;
  const w=e.world,a=ACTIONS[actionIndex],oldS=stateOf(e),oldDist=manhattan(e,w.enemy),oldZone=Math.hypot(e.x-w.zone.x,e.y-w.zone.y);
@@ -158,7 +190,7 @@ function step(actionIndex,learn=true){
  if(oldZone>w.zone.r){
    const progress=clamp(oldZone-dist,-1,1);
    reward+=progress*0.30;
-   if(dist>w.zone.r){e.hp--;e.outsideZoneSteps++;e.zoneLossSteps++;reward-=0.55;lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: health penalty';}
+   if(dist>w.zone.r){e.outsideZoneSteps++;reward-=0.12;if(e.outsideZoneSteps%3===0){e.hp--;e.zoneLossSteps++;reward-=0.55;lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: health penalty';}else{lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: move toward zone';}}
    else {reward+=0.9;lastDecision='Entered safe zone';}
  } else {
    reward+=0.08; // modest survival bonus while inside the safe zone
@@ -188,11 +220,11 @@ function finishEpisode(){
    if(episodes>=trainTarget){running=false;mode='idle';clearTimeout(timer);timer=null;log('Training target reached: '+episodes+' episodes.');updateUI();return;}
  }else if(running&&mode==='live'){running=false;mode='idle';updateUI();log('Live episode complete: reward '+e.reward.toFixed(1));}
 }
-function scheduleNext(){if(!running)return;const loops=[1,3,10,25,60][currentSpeed-1];for(let i=0;i<loops&&running;i++){if(!episode||episode.done)initEpisode(seedBase+episodes*17+stepCount,false);const a=choose(stateOf(episode),true);step(a,true);if(!running||mode!=='train')break;}if(running&&mode==='train')timer=setTimeout(scheduleNext,[300,140,65,22,5][currentSpeed-1]);}
+function scheduleNext(){if(!running)return;const loops=[1,3,10,25,60][currentSpeed-1];for(let i=0;i<loops&&running;i++){if(!episode||episode.done)initEpisode(seedBase+episodes*17+stepCount,false);const proposed=choose(stateOf(episode),true);const a=applySurvivalGuardrail(episode,proposed);step(a,true);if(!running||mode!=='train')break;}if(running&&mode==='train')timer=setTimeout(scheduleNext,[300,140,65,22,5][currentSpeed-1]);}
 function startTraining(){if(running)return;trainTarget=Math.max(episodes,Number($('target').value));if(trainTarget<=episodes)trainTarget=episodes+100;mode='train';running=true;initEpisode(seedBase+episodes*17,false);$('phase').textContent='TRAINING';log('Training started. Target: '+trainTarget+' episodes.');updateUI();scheduleNext();}
 function pause(){running=false;mode='idle';if(timer)clearTimeout(timer);timer=null;$('phase').textContent='PAUSED';log('Training paused at episode '+episodes+'.');updateUI();}
 function startLive(){if(running)pause();mode='live';running=true;initEpisode(seedBase+episodes*17+Math.floor(Math.random()*999),false);$('phase').textContent='LIVE OBSERVATION';log('Live observation episode started.');updateUI();liveTick();}
-function liveTick(){if(!running||mode!=='live')return;const a=choose(stateOf(episode),false);lastDecision='Action: '+ACTIONS[a].n+' · state '+key(stateOf(episode));step(a,false);if(running&&mode==='live')timer=setTimeout(liveTick,210);}
+function liveTick(){if(!running||mode!=='live')return;const proposed=choose(stateOf(episode),false);const a=applySurvivalGuardrail(episode,proposed);lastDecision='Action: '+ACTIONS[a].n+' · state '+key(stateOf(episode));step(a,false);if(running&&mode==='live')timer=setTimeout(liveTick,210);}
 function evaluate(){
  if(running)pause();
  mode='eval';
@@ -207,7 +239,7 @@ function evaluate(){
    initEpisode(seed,true);let guard=0;
    while(episode&&!episode.done&&guard<MAX_STEPS){
      const s=stateOf(episode),vals=q[key(s)]||[0,0,0,0,0];
-     const best=greedyIndex(vals);
+     const proposed=greedyIndex(vals),best=applySurvivalGuardrail(episode,proposed);
      step(best,false);guard++;
    }
    const e=episode;
@@ -225,7 +257,7 @@ function evaluate(){
  $('evalZoneLoss').textContent=(r.zoneLossSteps/tests).toFixed(1);
  $('evalDamage').textContent=(r.damageEvents/tests).toFixed(1);
  lastEvalReport={
-   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.8',
+   schemaVersion:1,project:'Gamy AI / DropZone Lab',simulatorVersion:'0.9',
    evaluatedAt:new Date().toISOString(),trainingEpisodes:episodes,epsilon,
    qStatesBefore,qStatesAfter,qTableUnchanged:qStatesBefore===qStatesAfter,
    evaluation:{trialCount:tests,seedFormula:'7001 + trialIndexZeroBased * 101',
@@ -327,7 +359,7 @@ let storageWorks=true;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({q,episodes,history,survivalHistory,epsilon,epRewards,epSurvivals,evalHistory,seedBase}));storageWorks=true;}catch(e){storageWorks=false;}}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;const d=JSON.parse(raw);q=d.q||{};episodes=d.episodes||0;history=d.history||[];survivalHistory=d.survivalHistory||[];epsilon=typeof d.epsilon==='number'?d.epsilon:1;epRewards=d.epRewards||[];epSurvivals=d.epSurvivals||[];evalHistory=d.evalHistory||[];seedBase=d.seedBase||811;log('Restored saved learning data: '+episodes+' episodes.');}catch(e){storageWorks=false;log('Could not load saved data; starting fresh.');}}
 $('trainBtn').addEventListener('click',startTraining);$('pauseBtn').addEventListener('click',pause);$('liveBtn').addEventListener('click',startLive);$('evalBtn').addEventListener('click',evaluate);$('exportBtn').addEventListener('click',exportEvaluation);$('coachBtn').addEventListener('click',runCoach);$('coachExportBtn').addEventListener('click',exportCoachPlan);
-$('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const a=choose(stateOf(episode),false);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
+$('stepBtn').addEventListener('click',()=>{if(running)pause();if(!episode||episode.done)initEpisode(seedBase+episodes*17,false);const proposed=choose(stateOf(episode),false),a=applySurvivalGuardrail(episode,proposed);lastDecision='Single step: '+ACTIONS[a].n;step(a,true);});
 $('resetBtn').addEventListener('click',()=>{if(running)pause();initEpisode(seedBase+episodes*17,false);log('Arena reset; learned policy retained.');updateUI();});
 $('clearBtn').addEventListener('click',()=>{if(running)pause();if(confirm('Delete all saved Q-learning data and episode history?')){q={};episodes=0;history=[];survivalHistory=[];evalHistory=[];epsilon=1;epRewards=[];epSurvivals=[];evalResult=null;try{localStorage.removeItem(SAVE_KEY);}catch(e){}initEpisode(seedBase,false);drawCharts();updateUI();log('Saved learning data cleared.');}});
 $('speed').addEventListener('input',e=>{currentSpeed=Number(e.target.value);$('speedVal').textContent=['Slow','Steady','Quick','Fast','Turbo'][currentSpeed-1];});
