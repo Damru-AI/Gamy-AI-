@@ -72,7 +72,8 @@
           <div class="progressline"><span>Outside-zone steps / trial</span><strong id="evalOutside">—</strong></div>
           <div class="progressline"><span>Obstacle hits / trial</span><strong id="evalObstacles">—</strong></div>
           <div class="progressline"><span>Loot collected / trial</span><strong id="evalLoot">—</strong></div>
-          <div class="progressline"><span>Damage events / trial</span><strong id="evalDamage">—</strong></div>
+          <div class="progressline"><span>Safe-zone HP loss / trial</span><strong id="evalZoneLoss">—</strong></div>
+          <div class="progressline"><span>Opponent hits / trial</span><strong id="evalDamage">—</strong></div>
           <div class="tiny">Evaluation uses fixed scenarios and does not update the Q-table.</div>
         </div>
         <div class="section">
@@ -104,7 +105,7 @@ function makeWorld(seed){
  for(let i=0;i<13;i++){let p;do{p=(2+Math.floor(rng()*(W-4)))+','+(2+Math.floor(rng()*(H-4)));}while(obstacles.has(p)||loot.has(p));loot.add(p);}
  const zone={x:16,y:10,r:10};return {obstacles,loot,zone,enemy:{x:25,y:15,hp:3,alive:true},tick:0,seed};
 }
-function initEpisode(seed,evalMode=false){episode={world:makeWorld(seed),x:3,y:3,hp:5,ammo:2,alive:true,done:false,steps:0,reward:0,loot:0,evalMode,visited:new Set(),won:false,outsideZoneSteps:0,obstacleHits:0,damageEvents:0};episode.visited.add('3,3');stepCount=0;episodeReward=0;episodeSteps=0;lastDecision='Agent spawned. Choose an action.';draw();}
+function initEpisode(seed,evalMode=false){episode={world:makeWorld(seed),x:3,y:3,hp:5,ammo:2,alive:true,done:false,steps:0,reward:0,loot:0,evalMode,visited:new Set(),won:false,outsideZoneSteps:0,obstacleHits:0,damageEvents:0,zoneLossSteps:0};episode.visited.add('3,3');stepCount=0;episodeReward=0;episodeSteps=0;lastDecision='Agent spawned. Choose an action.';draw();}
 function manhattan(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
 function stateOf(e){
  const w=e.world, enemy=w.enemy, dx=enemy.x-e.x,dy=enemy.y-e.y;
@@ -142,7 +143,7 @@ function step(actionIndex,learn=true){
  if(oldZone>w.zone.r){
    const progress=clamp(oldZone-dist,-1,1);
    reward+=progress*0.30;
-   if(dist>w.zone.r){e.hp--;e.outsideZoneSteps++;e.damageEvents++;reward-=0.55;lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: health penalty';}
+   if(dist>w.zone.r){e.hp--;e.outsideZoneSteps++;e.zoneLossSteps++;reward-=0.55;lastDecision=progress>0?'Moving toward safe zone':'Outside safe zone: health penalty';}
    else {reward+=0.9;lastDecision='Entered safe zone';}
  } else {
    reward+=0.08; // modest survival bonus while inside the safe zone
@@ -166,7 +167,7 @@ function step(actionIndex,learn=true){
 function finishEpisode(){
  const e=episode;if(!e)return;
  if(!e.evalMode){episodes++;epRewards.push(e.reward);epSurvivals.push(e.steps);if(epRewards.length>50)epRewards.shift();if(epSurvivals.length>50)epSurvivals.shift();history.push({ep:episodes,reward:e.reward,avg:epRewards.reduce((a,b)=>a+b,0)/epRewards.length});survivalHistory.push({ep:episodes,steps:e.steps});if(history.length>250)history.shift();if(survivalHistory.length>250)survivalHistory.shift();epsilon=Math.max(0.06,epsilon*0.9975);if(e.won)episodeWins++;save();}
- else {evalResult=evalResult||{wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0};evalResult.n++;evalResult.reward+=e.reward;evalResult.survival+=e.steps;evalResult.outsideZoneSteps+=e.outsideZoneSteps;evalResult.obstacleHits+=e.obstacleHits;evalResult.loot+=e.loot;evalResult.damageEvents+=e.damageEvents;if(e.won)evalResult.wins++;}
+ else {evalResult=evalResult||{wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0};evalResult.n++;evalResult.reward+=e.reward;evalResult.survival+=e.steps;evalResult.outsideZoneSteps+=e.outsideZoneSteps;evalResult.obstacleHits+=e.obstacleHits;evalResult.loot+=e.loot;evalResult.damageEvents+=e.damageEvents;evalResult.zoneLossSteps+=e.zoneLossSteps;if(e.won)evalResult.wins++;}
  updateUI();drawCharts();
  if(running&&mode==='train'){
    if(episodes>=trainTarget){running=false;mode='idle';clearTimeout(timer);timer=null;log('Training target reached: '+episodes+' episodes.');updateUI();return;}
@@ -178,7 +179,7 @@ function pause(){running=false;mode='idle';if(timer)clearTimeout(timer);timer=nu
 function startLive(){if(running)pause();mode='live';running=true;initEpisode(seedBase+episodes*17+Math.floor(Math.random()*999),false);$('phase').textContent='LIVE OBSERVATION';log('Live observation episode started.');updateUI();liveTick();}
 function liveTick(){if(!running||mode!=='live')return;const a=choose(stateOf(episode),false);lastDecision='Action: '+ACTIONS[a].n+' · state '+key(stateOf(episode));step(a,false);if(running&&mode==='live')timer=setTimeout(liveTick,210);}
 function evaluate(){
- if(running)pause();mode='eval';evalResult={wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0};const priorE=epsilon;const savedEpisode=episode;const tests=20;
+ if(running)pause();mode='eval';evalResult={wins:0,reward:0,survival:0,n:0,outsideZoneSteps:0,obstacleHits:0,loot:0,damageEvents:0,zoneLossSteps:0};const priorE=epsilon;const savedEpisode=episode;const tests=20;
  // Evaluation is synchronous, deterministic and never updates Q-values.
  for(let i=0;i<tests;i++){
    initEpisode(7001+i*101,true);let guard=0;
@@ -189,6 +190,7 @@ function evaluate(){
  $('evalOutside').textContent=(r.outsideZoneSteps/tests).toFixed(1);
  $('evalObstacles').textContent=(r.obstacleHits/tests).toFixed(1);
  $('evalLoot').textContent=(r.loot/tests).toFixed(1);
+ $('evalZoneLoss').textContent=(r.zoneLossSteps/tests).toFixed(1);
  $('evalDamage').textContent=(r.damageEvents/tests).toFixed(1);
  log('Evaluation complete: survival '+Math.round(r.survival/tests)+' steps avg; '+r.wins+'/'+tests+' wins.');
  episode=savedEpisode;epsilon=priorE;mode='idle';running=false;draw();drawCharts();updateUI();$('phase').textContent='EVALUATION COMPLETE';
